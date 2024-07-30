@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Map with Pin List</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div id="pin-list"></div>
+    <div id="map"></div>
+    
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Erstellen der Leatflet Karte und setze Startkoordinaten auf 50, 2 und Zoomlevel auf 2
+        var map = L.map('map').setView([50, 0], 2); 
+
+        // zum Laden der Karte von Open Street Map 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Arrays zum Speichern der Pins und Markers 
+        var pins = []; 
+        var markers = []; 
+
+        // Funktion zum hinzufügen und aktualisieren der Pins 
+        function addPin(lat, lng, status, personName) {
+            var pin = { lat: lat, lng: lng, status: status, personName: personName };
+            pins.push(pin);
+            
+            // Pin-Farbe in Abhängigkeit des Status ermitteln 
+            var pinColor = getStatusColor(status);
+
+            var popupContent = `Status: ${status}<br>Person: ${personName}`;
+            var marker = L.marker([lat, lng], { icon: pinColor }).bindPopup(popupContent).addTo(map);
+            markers.push(marker); 
+
+            updatePinList();
+
+            // Event-Listener hinzufügen für Klick-Event für die Karte
+            marker.on('click', function(e) {
+                // Anhand der unterschiedlichen Status, werden
+                // unterschiedliche Folgepopups aufgerufen
+                if (pin.status === 'neu') {
+                    var newName = prompt("Bergende Person:", personName);
+                    if (newName !== null && newName.trim() !== '' && newName !== 'Anonym') {
+                        pin.personName = newName;
+                        pin.status = "in Bergung"; // Update status to "in Bergung"
+                        marker.setIcon(getStatusColor(pin.status)); // Update marker icon
+                        marker.getPopup().setContent(`Status: ${pin.status}<br>Person: ${pin.personName}`);
+                        updatePinList();
+                    }
+                } else if (pin.status === 'in Bergung') {
+                    var netzGeborgen = confirm("Netz geborgen?");
+                    if (netzGeborgen) {
+                        pin.status = "geborgen"; // Update status to "Geborgen"
+                        marker.setIcon(getStatusColor(pin.status)); // Update marker icon
+                    } else {
+                        pin.status = "in Bergung"; // Remain status "in Bergung"
+                    }
+                    marker.getPopup().setContent(`Status: ${pin.status}<br>Person: ${pin.personName}`);
+                    updatePinList();
+                }
+            });
+        }
+
+        // Funktion zum aktualisieren der Pin-Liste 
+        function updatePinList() {
+            var pinListDiv = document.getElementById('pin-list');
+            pinListDiv.innerHTML = '';
+            pins.forEach((pin, index) => {
+                var pinElement = document.createElement('div');
+                pinElement.classList.add('pin-item');
+                pinElement.innerHTML = `
+                    <h4>${pin.personName}</h4>
+                    <p class="status">Status: ${pin.status}</p>
+                    <p class="coordinates">Coordinates: (${pin.lat}, ${pin.lng})</p>
+                `;
+                pinListDiv.appendChild(pinElement);
+
+                // Event-Listener hinzufügen für Klick-Event für die Liste
+                pinElement.addEventListener('click', function() {
+                    // Anhand der unterschiedlichen Status, werden
+                    // unterschiedliche Folgepopups aufgerufen
+                    if (pin.status === 'neu') {
+                        var newName = prompt("Bergende Person:", pin.personName);
+                        if (newName !== null && newName.trim() !== '' && newName !== 'Anonym') {
+                            pin.personName = newName;
+                            pin.status = "in Bergung"; // Update status to "in Bergung"
+                            var popupContent = `Status: ${pin.status}<br>Person: ${pin.personName}`;
+                            markers[index].setIcon(getStatusColor(pin.status)); // Update marker icon
+                            markers[index].getPopup().setContent(popupContent);
+                            updatePinList();
+                        } 
+                    } else if (pin.status === 'in Bergung') {
+                        var netzGeborgen = confirm("Netz geborgen?");
+                        if (netzGeborgen) {
+                            pin.status = "geborgen"; // Update status to "Geborgen"
+                            markers[index].setIcon(getStatusColor(pin.status)); // Update marker icon
+                        } else {
+                            pin.status = "in Bergung"; // Remain status "in Bergung"
+                        }
+                        var popupContent = `Status: ${pin.status}<br>Person: ${pin.personName}`;
+                        markers[index].getPopup().setContent(popupContent);
+                        updatePinList();
+                    }
+                });
+            });
+        }
+
+        // Pin beim Klick auf die Karte hinzufügen 
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            var status = "neu"; // Default status
+            var personName = prompt("Enter person's name:") || "Anonym"; // Default person name
+
+            addPin(lat, lng, status, personName);
+        });
+
+        // Ermittel die Pin-Farbe anhand des Stauts 
+        function getStatusColor(status) {
+            var iconUrl;
+
+            switch (status) {
+                case 'neu':
+                    iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png';
+                    break;
+                case 'in Bergung':
+                    iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png';
+                    break;
+                case 'geborgen':
+                    iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png';
+                    break;
+                default:
+                    iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png';
+            }
+
+            return L.icon({
+                iconUrl: iconUrl,
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+com\example\map\service\PinService.class
+com\example\map\web\PinServlet.class
+com\example\map\model\Pin.class
